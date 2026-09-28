@@ -85,6 +85,9 @@ def check_store(store_number):
 
     stores = data.get("body", {}).get("stores", [])
 
+    if not stores:
+        raise RuntimeError("Apple 没有返回门店数据")
+
     for store in stores:
         if store.get("storeNumber") != store_number:
             continue
@@ -92,9 +95,21 @@ def check_store(store_number):
         availability = store.get("partsAvailability", {})
         product = availability.get(PART_NUMBER, {})
 
-        return product.get("pickupDisplay") == "available"
+        status = product.get("pickupDisplay")
 
-    return False
+        if status == "available":
+            return True
+
+        if status in ("unavailable", "ineligible"):
+            return False
+
+        raise RuntimeError(
+            f"未知库存状态: {status}"
+        )
+
+    raise RuntimeError(
+        f"Apple 没有返回门店 {store_number}"
+    )
 
 
 def main():
@@ -103,10 +118,15 @@ def main():
 
     print("Checking Apple Hong Kong stock...")
 
+    successful_checks = 0
+    failed_stores = []
+
     for store_number, store_name in STORES.items():
         try:
             available = check_store(store_number)
+
             current[store_number] = available
+            successful_checks += 1
 
             print(
                 f"{store_name}: "
@@ -114,17 +134,35 @@ def main():
             )
 
         except Exception as e:
-            print(f"{store_name}: ERROR - {e}")
+            failed_stores.append(store_name)
 
-    if not current:
-        raise RuntimeError("没有成功检查任何香港 Apple Store。")
+            print(
+                f"{store_name}: ERROR - {e}"
+            )
 
+    # 如果所有门店都查询失败，直接让任务失败
+    # 防止 Apple API 整体异常时误认为全部无货
+    if successful_checks == 0:
+        raise RuntimeError(
+            "所有香港 Apple Store 查询都失败，"
+            "为了防止漏报库存，本次不更新库存状态。"
+        )
+
+    # 只有成功查询到的门店才进行库存状态判断
     newly_available = []
 
     for store_number, available in current.items():
-        if available and not previous.get(store_number, False):
-            newly_available.append(STORES[store_number])
+        was_available = previous.get(
+            store_number,
+            False
+        )
 
+        if available and not was_available:
+            newly_available.append(
+                STORES[store_number]
+            )
+
+    # 发现「无货 → 有货」
     if newly_available:
         message = (
             "🚨 Apple 香港门店发现库存！\n\n"
@@ -133,7 +171,8 @@ def main():
             "💾 512GB\n\n"
             "有货门店：\n"
             + "\n".join(
-                f"• {store}" for store in newly_available
+                f"• {store}"
+                for store in newly_available
             )
             + "\n\n"
             "立即打开 Apple 官方页面确认：\n"
@@ -145,9 +184,26 @@ def main():
 
         print("NTFY notification sent!")
 
-    save_state(current)
+    # 只保存成功查询的门店
+    #
+    # 查询失败的门店保留旧状态，
+    # 防止 API 临时异常造成误判。
+    new_state = previous.copy()
+    new_state.update(current)
 
+    save_state(new_state)
+
+    print("")
     print("Stock check completed.")
+
+    if failed_stores:
+        print("")
+        print(
+            "WARNING: 以下门店本次查询失败："
+        )
+
+        for store in failed_stores:
+            print(f"- {store}")
 
 
 if __name__ == "__main__":
