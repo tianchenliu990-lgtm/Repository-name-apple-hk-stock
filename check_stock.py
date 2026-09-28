@@ -1,15 +1,14 @@
 import json
 import os
+import time
 from datetime import datetime, timezone
 
 import requests
 
 
-# =========================
-# Apple HK
-# iPhone 18 Pro Max
-# Glacier / 512GB
-# =========================
+# ============================================================
+# Configuration
+# ============================================================
 
 PART_NUMBER = "MJXW4ZA/A"
 
@@ -17,14 +16,28 @@ APPLE_URL = (
     "https://www.apple.com/hk/shop/retail/pickup-message"
 )
 
+PRODUCT_URL = (
+    "https://www.apple.com/hk/shop/buy-iphone/"
+    "iphone-18-pro/6.9-inch-display-512gb-glacier"
+)
+
 NTFY_TOPIC = os.environ["NTFY_TOPIC"]
 
 STATE_FILE = "stock_state.json"
 
+# 没货时，每 20 分钟提醒一次
+NO_STOCK_INTERVAL = 20 * 60
 
-# =========================
+# Apple 请求失败时最多重试 3 次
+MAX_RETRIES = 3
+
+# 每次重试间隔
+RETRY_DELAY = 3
+
+
+# ============================================================
 # Hong Kong Apple Stores
-# =========================
+# ============================================================
 
 STORES = {
     "R409": "Canton Road",
@@ -36,9 +49,9 @@ STORES = {
 }
 
 
-# =========================
-# Request headers
-# =========================
+# ============================================================
+# HTTP headers
+# ============================================================
 
 HEADERS = {
     "User-Agent": (
@@ -52,9 +65,9 @@ HEADERS = {
 }
 
 
-# =========================
-# Load saved state
-# =========================
+# ============================================================
+# Load state
+# ============================================================
 
 def load_state():
     if not os.path.exists(STATE_FILE):
@@ -68,13 +81,14 @@ def load_state():
         ) as f:
             return json.load(f)
 
-    except Exception:
+    except Exception as e:
+        print(f"WARNING: 无法读取状态文件: {e}")
         return {}
 
 
-# =========================
+# ============================================================
 # Save state
-# =========================
+# ============================================================
 
 def save_state(state):
     with open(
@@ -90,39 +104,32 @@ def save_state(state):
         )
 
 
-# =========================
+# ============================================================
 # Send ntfy notification
-# =========================
+# ============================================================
 
 def send_ntfy(title, message):
 
     response = requests.post(
         f"https://ntfy.sh/{NTFY_TOPIC}",
-
         data=message.encode("utf-8"),
-
         headers={
-            # HTTP Header 不能直接放中文
-            "Title": "Apple HK Stock Alert",
-
+            # Header 只能使用 ASCII
+            "Title": title,
             "Priority": "urgent",
-
             "Tags": "apple,iphone",
         },
-
         timeout=20,
     )
 
     response.raise_for_status()
 
-    print(
-        "NTFY notification sent."
-    )
+    print("NTFY notification sent.")
 
 
-# =========================
+# ============================================================
 # Check one Apple Store
-# =========================
+# ============================================================
 
 def check_store(store_number):
 
@@ -133,92 +140,102 @@ def check_store(store_number):
         "store": store_number,
     }
 
-    response = requests.get(
-        APPLE_URL,
-        params=params,
-        headers=HEADERS,
-        timeout=30,
-    )
+    last_error = None
 
-    response.raise_for_status()
+    for attempt in range(1, MAX_RETRIES + 1):
 
-    data = response.json()
+        try:
 
-    stores = (
-        data
-        .get("body", {})
-        .get("stores", [])
-    )
+            response = requests.get(
+                APPLE_URL,
+                params=params,
+                headers=HEADERS,
+                timeout=30,
+            )
 
-    if not stores:
+            response.raise_for_status()
 
-        raise RuntimeError(
-            "Apple 没有返回门店数据"
-        )
+            data = response.json()
 
-    for store in stores:
+            stores = (
+                data
+                .get("body", {})
+                .get("stores", [])
+            )
 
-        if (
-            store.get("storeNumber")
-            != store_number
-        ):
-            continue
+            if not stores:
+                raise RuntimeError(
+                    "Apple 没有返回门店数据"
+                )
 
-        availability = store.get(
-            "partsAvailability",
-            {},
-        )
+            for store in stores:
 
-        product = availability.get(
-            PART_NUMBER,
-            {},
-        )
+                if (
+                    store.get("storeNumber")
+                    != store_number
+                ):
+                    continue
 
-        status = product.get(
-            "pickupDisplay"
-        )
+                availability = store.get(
+                    "partsAvailability",
+                    {},
+                )
 
-        if status == "available":
+                product = availability.get(
+                    PART_NUMBER,
+                    {},
+                )
 
-            return True
+                status = product.get(
+                    "pickupDisplay"
+                )
 
-        if status in (
-            "unavailable",
-            "ineligible",
-        ):
+                if status == "available":
+                    return True
 
-            return False
+                if status in (
+                    "unavailable",
+                    "ineligible",
+                ):
+                    return False
 
-        raise RuntimeError(
-            f"未知库存状态: {status}"
-        )
+                raise RuntimeError(
+                    f"未知库存状态: {status}"
+                )
+
+            raise RuntimeError(
+                f"Apple 没有返回门店 {store_number}"
+            )
+
+        except Exception as e:
+
+            last_error = e
+
+            print(
+                f"{STORES[store_number]} "
+                f"第 {attempt}/{MAX_RETRIES} 次失败: {e}"
+            )
+
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_DELAY)
 
     raise RuntimeError(
-        f"Apple 没有返回门店 "
-        f"{store_number}"
+        f"Apple 请求失败: {last_error}"
     )
 
 
-# =========================
-# Get today's UTC date
-# =========================
-
-def today_utc():
-
-    return datetime.now(
-        timezone.utc
-    ).strftime(
-        "%Y-%m-%d"
-    )
-
-
-# =========================
+# ============================================================
 # Main
-# =========================
+# ============================================================
 
 def main():
 
     previous = load_state()
+
+    previous_stores = previous.get(
+        "stores",
+        {},
+    )
 
     current = {}
 
@@ -226,18 +243,26 @@ def main():
 
     failed_stores = []
 
+
     print(
         "Checking Apple Hong Kong stock..."
     )
 
+    print(
+        "Product: iPhone 18 Pro Max "
+        "Glacier 512GB"
+    )
 
-    # =========================
-    # Check all 6 stores
-    # =========================
+    print("")
+
+
+    # ========================================================
+    # Check all stores
+    # ========================================================
 
     for (
         store_number,
-        store_name
+        store_name,
     ) in STORES.items():
 
         try:
@@ -268,39 +293,33 @@ def main():
             )
 
 
-    # =========================
-    # All stores failed
-    # Do NOT update state
-    # =========================
+    # ========================================================
+    # All Apple requests failed
+    # Do not change stock state
+    # ========================================================
 
     if successful_checks == 0:
 
         raise RuntimeError(
-            "所有香港 Apple Store "
-            "查询都失败。"
+            "所有香港 Apple Store 查询都失败，"
             "本次不更新库存状态。"
         )
 
 
-    # =========================
-    # Detect new stock
-    # =========================
-
-    previous_stores = previous.get(
-        "stores",
-        {}
-    )
+    # ========================================================
+    # Detect newly available stores
+    # ========================================================
 
     newly_available = []
 
     for (
         store_number,
-        available
+        available,
     ) in current.items():
 
         was_available = previous_stores.get(
             store_number,
-            False
+            False,
         )
 
         # 无货 → 有货
@@ -314,34 +333,25 @@ def main():
             )
 
 
-    # =========================
-    # STOCK FOUND
-    # =========================
+    # ========================================================
+    # Stock found
+    # ========================================================
 
     if newly_available:
 
         message = (
             "🚨 Apple 香港门店发现库存！\n\n"
-
             "iPhone 18 Pro Max\n"
-
             "❄️ Glacier 冰川色\n"
-
             "💾 512GB\n\n"
-
             "有货门店：\n"
-
             + "\n".join(
                 f"• {store}"
                 for store in newly_available
             )
-
             + "\n\n"
-
             "立即打开 Apple 官方页面确认：\n"
-
-            "https://www.apple.com/hk/shop/buy-iphone/"
-            "iphone-18-pro/6.9-inch-display-512gb-glacier"
+            + PRODUCT_URL
         )
 
         send_ntfy(
@@ -350,47 +360,52 @@ def main():
         )
 
 
-    # =========================
-    # All stores unavailable
-    # Send once per day
-    # =========================
+    # ========================================================
+    # Check whether all stores are unavailable
+    # ========================================================
 
     all_unavailable = (
-        successful_checks
-        == len(STORES)
-        and not any(
-            current.values()
-        )
-    )
-
-    today = today_utc()
-
-    last_no_stock_notice = (
-        previous.get(
-            "last_no_stock_notice"
-        )
+        successful_checks == len(STORES)
+        and not any(current.values())
     )
 
 
-    if (
+    # ========================================================
+    # No-stock notification every 20 minutes
+    # ========================================================
+
+    now = datetime.now(
+        timezone.utc
+    )
+
+    now_timestamp = now.timestamp()
+
+    last_no_stock_notice = previous.get(
+        "last_no_stock_notice",
+        0,
+    )
+
+    should_send_no_stock = (
         all_unavailable
-        and last_no_stock_notice
-        != today
-    ):
+        and (
+            now_timestamp
+            - last_no_stock_notice
+            >= NO_STOCK_INTERVAL
+        )
+    )
+
+
+    if should_send_no_stock:
 
         message = (
             "📦 Apple 香港库存监控\n\n"
-
             "目前 6 家 Apple Store "
             "均没有库存。\n\n"
-
             "型号：iPhone 18 Pro Max\n"
-
             "颜色：Glacier 冰川色\n"
-
             "容量：512GB\n\n"
-
-            "监控仍在正常运行。"
+            "监控仍在正常运行。\n\n"
+            "下次无货提醒：约 20 分钟后"
         )
 
         send_ntfy(
@@ -400,45 +415,74 @@ def main():
 
         previous[
             "last_no_stock_notice"
-        ] = today
+        ] = now_timestamp
 
 
-    # =========================
-    # Save state
-    # =========================
+    # ========================================================
+    # Update stock state
+    # ========================================================
 
     new_state = previous.copy()
 
     old_stores = previous.get(
         "stores",
-        {}
-    )
+        {},
+    ).copy()
 
-    old_stores.update(
-        current
-    )
+    state_changed = False
+
+    for (
+        store_number,
+        available,
+    ) in current.items():
+
+        if (
+            old_stores.get(store_number)
+            != available
+        ):
+
+            state_changed = True
+
+        old_stores[
+            store_number
+        ] = available
+
 
     new_state[
         "stores"
     ] = old_stores
 
-    new_state[
-        "last_check"
-    ] = datetime.now(
-        timezone.utc
-    ).isoformat()
 
-    save_state(
-        new_state
-    )
+    # ========================================================
+    # Only save when something meaningful changed
+    # ========================================================
+
+    if (
+        state_changed
+        or should_send_no_stock
+        or not os.path.exists(STATE_FILE)
+    ):
+
+        save_state(
+            new_state
+        )
+
+        print(
+            "Stock state updated."
+        )
+
+    else:
+
+        print(
+            "No stock state change."
+        )
 
 
-    # =========================
+    # ========================================================
     # Result
-    # =========================
+    # ========================================================
 
     print("")
-
     print(
         "Stock check completed."
     )
@@ -447,7 +491,6 @@ def main():
     if failed_stores:
 
         print("")
-
         print(
             "WARNING: 以下门店查询失败："
         )
@@ -459,10 +502,9 @@ def main():
             )
 
 
-# =========================
+# ============================================================
 # Start
-# =========================
+# ============================================================
 
 if __name__ == "__main__":
-
     main()
