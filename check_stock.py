@@ -50,7 +50,7 @@ def send_ntfy(message):
         f"https://ntfy.sh/{NTFY_TOPIC}",
         data=message.encode("utf-8"),
         headers={
-            "Title": "🍎 Apple 香港库存监控测试",
+            "Title": "Apple HK Stock Test",
             "Priority": "urgent",
             "Tags": "apple,iphone,test",
         },
