@@ -16,16 +16,20 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - run: pip install requests urllib3
+      - name: Install dependencies
+        run: |
+          pip install requests urllib3 playwright
+          playwright install chromium
 
       - name: Run checker
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-          APPLE_COOKIE: ${{ secrets.APPLE_COOKIE }}
         run: python check_stock.py
