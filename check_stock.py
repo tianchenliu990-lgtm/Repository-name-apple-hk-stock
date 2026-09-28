@@ -3,9 +3,7 @@ import os
 import requests
 
 PART_NUMBER = "MJXW4ZA/A"
-
 APPLE_URL = "https://www.apple.com/hk/shop/retail/pickup-message"
-
 NTFY_TOPIC = os.environ["NTFY_TOPIC"]
 
 STORES = {
@@ -31,7 +29,7 @@ HEADERS = {
 }
 
 
-def load_previous_state():
+def load_state():
     if not os.path.exists(STATE_FILE):
         return {}
 
@@ -48,10 +46,8 @@ def save_state(state):
 
 
 def send_ntfy(message):
-    url = f"https://ntfy.sh/{NTFY_TOPIC}"
-
     response = requests.post(
-        url,
+        f"https://ntfy.sh/{NTFY_TOPIC}",
         data=message.encode("utf-8"),
         headers={
             "Title": "🍎 Apple 香港库存提醒",
@@ -68,11 +64,12 @@ def send_ntfy(message):
     response.raise_for_status()
 
 
-def main():
+def check_store(store_number):
     params = {
         "pl": "true",
         "mts.0": "regular",
         "parts.0": PART_NUMBER,
+        "store": store_number,
     }
 
     response = requests.get(
@@ -88,41 +85,45 @@ def main():
 
     stores = data.get("body", {}).get("stores", [])
 
-    if not stores:
-        raise RuntimeError(
-            "Apple API 没有返回门店数据，不能判断库存。"
-        )
-
-    previous = load_previous_state()
-    current = {}
-
     for store in stores:
-        store_number = store.get("storeNumber")
-
-        if store_number not in STORES:
+        if store.get("storeNumber") != store_number:
             continue
 
-        parts = store.get("partsAvailability", {})
-        product = parts.get(PART_NUMBER, {})
+        availability = store.get("partsAvailability", {})
+        product = availability.get(PART_NUMBER, {})
 
-        status = product.get("pickupDisplay", "unknown")
+        return product.get("pickupDisplay") == "available"
 
-        current[store_number] = status == "available"
+    return False
+
+
+def main():
+    previous = load_state()
+    current = {}
+
+    print("Checking Apple Hong Kong stock...")
+
+    for store_number, store_name in STORES.items():
+        try:
+            available = check_store(store_number)
+            current[store_number] = available
+
+            print(
+                f"{store_name}: "
+                f"{'AVAILABLE' if available else 'unavailable'}"
+            )
+
+        except Exception as e:
+            print(f"{store_name}: ERROR - {e}")
 
     if not current:
-        raise RuntimeError(
-            "没有找到目标香港 Apple Store。"
-        )
+        raise RuntimeError("没有成功检查任何香港 Apple Store。")
 
     newly_available = []
 
-    for store_number, is_available in current.items():
-        was_available = previous.get(store_number, False)
-
-        if is_available and not was_available:
-            newly_available.append(
-                STORES[store_number]
-            )
+    for store_number, available in current.items():
+        if available and not previous.get(store_number, False):
+            newly_available.append(STORES[store_number])
 
     if newly_available:
         message = (
@@ -135,22 +136,18 @@ def main():
                 f"• {store}" for store in newly_available
             )
             + "\n\n"
-            "请立即打开 Apple 官方页面确认并下单：\n"
+            "立即打开 Apple 官方页面确认：\n"
             "https://www.apple.com/hk/shop/buy-iphone/"
             "iphone-18-pro/6.9-inch-display-512gb-glacier"
         )
 
         send_ntfy(message)
 
+        print("NTFY notification sent!")
+
     save_state(current)
 
-    print("Apple HK inventory:")
-
-    for store_number, is_available in current.items():
-        print(
-            STORES[store_number],
-            "AVAILABLE" if is_available else "unavailable"
-        )
+    print("Stock check completed.")
 
 
 if __name__ == "__main__":
