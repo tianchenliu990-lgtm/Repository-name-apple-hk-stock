@@ -33,14 +33,15 @@ jobs:
 
       - name: Save stock state
         run: |
-          if git diff --quiet -- stock_state.json; then
-            echo "No stock state change."
-            exit 0
-          fi
-
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add stock_state.json
+
+          if git diff --cached --quiet; then
+            echo "No stock state change."
+            exit 0
+          fi
+
           git commit -m "Update stock state"
           git push
