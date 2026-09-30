@@ -4,8 +4,8 @@
     "R409": true,
     "R428": false,
     "R485": false,
-    "R499": false,
+    "R499": true,
     "R610": false,
-    "R673": false
+    "R673": true
   }
 }
