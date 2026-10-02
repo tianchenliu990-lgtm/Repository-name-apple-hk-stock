@@ -5,7 +5,7 @@
     "R428": true,
     "R485": false,
     "R499": false,
-    "R610": true,
-    "R673": true
+    "R610": false,
+    "R673": false
   }
 }
