@@ -1,11 +1,11 @@
 {
   "last_no_stock_notice": 1790987057.465859,
   "stores": {
-    "R409": false,
+    "R409": true,
     "R428": true,
-    "R485": false,
-    "R499": false,
+    "R485": true,
+    "R499": true,
     "R610": true,
-    "R673": false
+    "R673": true
   }
 }
