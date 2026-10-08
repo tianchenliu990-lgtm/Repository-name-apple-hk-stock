@@ -25,8 +25,8 @@ NTFY_TOPIC = os.environ["NTFY_TOPIC"]
 
 STATE_FILE = "stock_state.json"
 
-# 没货时，每 20 分钟提醒一次
-NO_STOCK_INTERVAL = 20 * 60
+# 没货时，每 2 小时提醒一次
+NO_STOCK_INTERVAL = 2 * 60 * 60
 
 # Apple 请求失败时最多重试 3 次
 MAX_RETRIES = 3
