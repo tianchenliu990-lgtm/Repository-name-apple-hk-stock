@@ -7,5 +7,32 @@
     "R499": false,
     "R610": false,
     "R673": false
-  }
+  },
+  "checks": {
+    "R409|MJXW4ZA/A": false,
+    "R428|MJXW4ZA/A": false,
+    "R485|MJXW4ZA/A": false,
+    "R499|MJXW4ZA/A": false,
+    "R610|MJXW4ZA/A": false,
+    "R673|MJXW4ZA/A": false,
+    "R409|MJXT4ZA/A": false,
+    "R428|MJXT4ZA/A": false,
+    "R485|MJXT4ZA/A": false,
+    "R499|MJXT4ZA/A": false,
+    "R610|MJXT4ZA/A": false,
+    "R673|MJXT4ZA/A": false,
+    "R409|MJXU4ZA/A": false,
+    "R428|MJXU4ZA/A": false,
+    "R485|MJXU4ZA/A": false,
+    "R499|MJXU4ZA/A": false,
+    "R610|MJXU4ZA/A": false,
+    "R673|MJXU4ZA/A": false,
+    "R409|MJXV4ZA/A": false,
+    "R428|MJXV4ZA/A": false,
+    "R485|MJXV4ZA/A": false,
+    "R499|MJXV4ZA/A": false,
+    "R610|MJXV4ZA/A": false,
+    "R673|MJXV4ZA/A": false
+  },
+  "last_checked_utc": "2026-10-09T02:57:11.530492+00:00"
 }
