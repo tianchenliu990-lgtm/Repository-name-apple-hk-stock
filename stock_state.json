@@ -14,7 +14,7 @@
     "R485|MJXW4ZA/A": false,
     "R499|MJXW4ZA/A": false,
     "R610|MJXW4ZA/A": false,
-    "R673|MJXW4ZA/A": false,
+    "R673|MJXW4ZA/A": true,
     "R409|MJXT4ZA/A": false,
     "R428|MJXT4ZA/A": false,
     "R485|MJXT4ZA/A": false,
@@ -34,5 +34,5 @@
     "R610|MJXV4ZA/A": false,
     "R673|MJXV4ZA/A": false
   },
-  "last_checked_utc": "2026-10-10T08:00:08.789355+00:00"
+  "last_checked_utc": "2026-10-10T08:02:13.682958+00:00"
 }
