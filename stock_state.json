@@ -25,8 +25,8 @@
     "R428|MJXU4ZA/A": false,
     "R485|MJXU4ZA/A": true,
     "R499|MJXU4ZA/A": false,
-    "R610|MJXU4ZA/A": false,
-    "R673|MJXU4ZA/A": false,
+    "R610|MJXU4ZA/A": true,
+    "R673|MJXU4ZA/A": true,
     "R409|MJXV4ZA/A": false,
     "R428|MJXV4ZA/A": false,
     "R485|MJXV4ZA/A": false,
@@ -34,5 +34,5 @@
     "R610|MJXV4ZA/A": false,
     "R673|MJXV4ZA/A": false
   },
-  "last_checked_utc": "2026-10-12T00:13:12.481475+00:00"
+  "last_checked_utc": "2026-10-12T00:14:11.416072+00:00"
 }
