@@ -1,15 +1,15 @@
-
 import json
 import os
 import time
 from datetime import datetime, timezone
+from email.header import Header
 
 import requests
 
 # 只监控 iPhone 18 Pro Max 512GB
-# 请确认所有产品编号均对应香港官网的正确颜色和容量
+# 产品编号沿用当前配置，请确认与香港官网实际颜色、容量一致
 PARTS = {
-    "MJXW4ZA/A": "Glacier 冰川色",       # 重点颜色
+    "MJXW4ZA/A": "Glacier 冰川色",
     "MJXT4ZA/A": "Black 黑色",
     "MJXU4ZA/A": "Silver 银色",
     "MJXV4ZA/A": "Burgundy 布根地红",
@@ -18,14 +18,13 @@ PARTS = {
 BLUE_PART_NUMBER = "MJXW4ZA/A"
 
 APPLE_URL = "https://www.apple.com/hk/shop/retail/pickup-message"
-PRODUCT_URL = (
-    "https://www.apple.com/hk/shop/buy-iphone/iphone-18-pro"
-)
+PRODUCT_URL = "https://www.apple.com/hk/shop/buy-iphone/iphone-18-pro"
 
+# 从 GitHub Secrets 读取，不要把主题名或密钥写进公开代码
 NTFY_TOPIC = os.environ["NTFY_TOPIC"]
 STATE_FILE = "stock_state.json"
 
-# 所有颜色、所有门店均确认无货时，每 2 小时提醒一次
+# 全部颜色、全部门店确认无货时，每 2 小时提醒一次
 NO_STOCK_INTERVAL = 2 * 60 * 60
 
 MAX_RETRIES = 3
@@ -71,12 +70,14 @@ def save_state(state):
 
 
 def send_ntfy(title, message, priority="urgent"):
+    # 将中文标题编码后放入 HTTP Header
+    encoded_title = Header(title, "utf-8").encode()
+
     response = requests.post(
         f"https://ntfy.sh/{NTFY_TOPIC}",
         data=message.encode("utf-8"),
         headers={
-            # 标题使用 ASCII，避免 HTTP Header 编码问题
-            "Title": title,
+            "Title": encoded_title,
             "Priority": priority,
             "Tags": "apple,iphone",
         },
@@ -129,9 +130,7 @@ def check_store(store_number, part_number):
 
                 raise RuntimeError(f"未知库存状态: {status}")
 
-            raise RuntimeError(
-                f"Apple 没有返回门店 {store_number}"
-            )
+            raise RuntimeError(f"Apple 没有返回门店 {store_number}")
 
         except Exception as e:
             last_error = e
@@ -153,7 +152,6 @@ def make_check_key(store_number, part_number):
 def main():
     previous = load_state()
 
-    # 兼容旧版状态文件：新版使用 checks 保存每个颜色、门店的状态
     previous_checks = previous.get("checks", {})
     if not isinstance(previous_checks, dict):
         previous_checks = {}
@@ -163,18 +161,20 @@ def main():
 
     total_checks = len(STORES) * len(PARTS)
 
-    print("Checking Apple Hong Kong stock...")
-    print("Product: iPhone 18 Pro Max 512GB")
-    print("Priority color: Glacier 冰川色")
-    print(f"Colors: {len(PARTS)}")
-    print(f"Stores: {len(STORES)}")
-    print(f"Total checks: {total_checks}")
+    print("正在查询 Apple 香港门店库存...")
+    print("型号：iPhone 18 Pro Max 512GB")
+    print("重点颜色：Glacier 冰川色")
+    print(f"颜色数量：{len(PARTS)}")
+    print(f"门店数量：{len(STORES)}")
+    print(f"总查询数：{total_checks}")
     print("")
 
-    # 重点蓝色先检查，其余颜色也全部检查
+    # 优先检查冰川色
     ordered_parts = sorted(
         PARTS.items(),
-        key=lambda item: 0 if item[0] == BLUE_PART_NUMBER else 1,
+        key=lambda item: (
+            0 if item[0] == BLUE_PART_NUMBER else 1
+        ),
     )
 
     for part_number, color_name in ordered_parts:
@@ -201,7 +201,7 @@ def main():
                 )
                 print(f"{store_name}: ERROR - {e}")
 
-    # 仅在库存从无货/未知变为有货时提醒，避免每分钟重复通知
+    # 仅在从无货/未知变为有货时通知，避免每分钟重复提醒
     newly_available = []
 
     for key, available in current.items():
@@ -209,13 +209,14 @@ def main():
 
         if available and not was_available:
             store_number, part_number = key.split("|", 1)
+
             newly_available.append({
                 "color": PARTS[part_number],
                 "store": STORES[store_number],
                 "part_number": part_number,
             })
 
-    # 蓝色优先显示，其他颜色也照常通知
+    # 冰川色优先显示
     if newly_available:
         newly_available.sort(
             key=lambda item: (
@@ -243,7 +244,7 @@ def main():
         ]
 
         if blue_items:
-            lines.append("⭐ 蓝色重点库存提醒（冰川色）：")
+            lines.append("⭐ 冰川色现货：")
             for item in blue_items:
                 lines.append(f"• {item['store']}")
 
@@ -259,19 +260,18 @@ def main():
 
         lines.extend([
             "",
-            "请立即打开 Apple 香港官网确认库存：",
+            "请尽快打开 Apple 香港官网确认库存：",
             PRODUCT_URL,
         ])
 
-        # 同时发现蓝色和其他颜色时，标题仍突出蓝色
         if blue_items:
-            title = "Apple HK BLUE STOCK ALERT"
+            title = "🚨 冰川色现货提醒"
         else:
-            title = "Apple HK OTHER COLOR STOCK"
+            title = "📦 iPhone 18 Pro Max 其他颜色有货"
 
         send_ntfy(title, "\n".join(lines))
 
-    # 只有全部 24 个组合查询成功且全部无货，才发无货提醒
+    # 只有全部 24 个组合查询成功且全部无货，才发送无货提醒
     all_checks_succeeded = (
         len(current) == total_checks
         and not failed_checks
@@ -293,7 +293,7 @@ def main():
     if should_send_no_stock:
         message = (
             "📦 Apple 香港库存监控\n\n"
-            "iPhone 18 Pro Max 512GB\n\n"
+            "型号：iPhone 18 Pro Max 512GB\n\n"
             "4 种颜色、6 家门店均已成功查询，"
             "目前全部无货。\n\n"
             "重点颜色：Glacier 冰川色\n"
@@ -303,10 +303,10 @@ def main():
             f"官方页面：{PRODUCT_URL}"
         )
 
-        send_ntfy("Apple HK NO STOCK", message)
+        send_ntfy("📦 苹果香港门店暂时无货", message)
         previous["last_no_stock_notice"] = now_timestamp
 
-    # 保存本次成功查询的结果；失败组合保留之前状态
+    # 保存本次成功查询的结果，失败的组合保留上次状态
     new_state = previous.copy()
     saved_checks = previous_checks.copy()
     state_changed = False
@@ -327,23 +327,21 @@ def main():
         or not os.path.exists(STATE_FILE)
     ):
         save_state(new_state)
-        print("Stock state updated.")
+        print("库存状态已更新。")
     else:
-        print("No stock state change.")
+        print("库存状态没有变化。")
 
     print("")
-    print(
-        f"Successful checks: {len(current)}/{total_checks}"
-    )
+    print(f"成功查询：{len(current)}/{total_checks}")
 
     if failed_checks:
         print("")
-        print("WARNING: 以下库存查询失败，不能视为无货：")
+        print("警告：以下查询失败，不能当作无货：")
         for item in failed_checks:
             print(f"- {item}")
 
     print("")
-    print("Stock check completed.")
+    print("库存检查完成。")
 
 
 if __name__ == "__main__":
