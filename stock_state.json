@@ -11,7 +11,7 @@
   "checks": {
     "R409|MJXW4ZA/A": false,
     "R428|MJXW4ZA/A": true,
-    "R485|MJXW4ZA/A": false,
+    "R485|MJXW4ZA/A": true,
     "R499|MJXW4ZA/A": true,
     "R610|MJXW4ZA/A": false,
     "R673|MJXW4ZA/A": false,
@@ -23,7 +23,7 @@
     "R673|MJXT4ZA/A": false,
     "R409|MJXU4ZA/A": false,
     "R428|MJXU4ZA/A": true,
-    "R485|MJXU4ZA/A": false,
+    "R485|MJXU4ZA/A": true,
     "R499|MJXU4ZA/A": true,
     "R610|MJXU4ZA/A": false,
     "R673|MJXU4ZA/A": false,
@@ -34,5 +34,5 @@
     "R610|MJXV4ZA/A": false,
     "R673|MJXV4ZA/A": false
   },
-  "last_checked_utc": "2026-10-13T23:44:07.851285+00:00"
+  "last_checked_utc": "2026-10-13T23:46:17.059214+00:00"
 }
