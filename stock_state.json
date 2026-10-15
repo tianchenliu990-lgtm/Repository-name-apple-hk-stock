@@ -1,5 +1,5 @@
 {
-  "last_no_stock_notice": 1792081296.453291,
+  "last_no_stock_notice": 1792088542.959783,
   "stores": {
     "R409": false,
     "R428": false,
@@ -34,7 +34,7 @@
     "R610|MJXV4ZA/A": false,
     "R673|MJXV4ZA/A": false
   },
-  "last_checked_utc": "2026-10-15T16:21:36.635960+00:00",
+  "last_checked_utc": "2026-10-15T18:22:23.150887+00:00",
   "last_stock_notice_MJXW4ZA_A": 1792079841.037145,
   "last_stock_notice_MJXU4ZA_A": 1792079841.037145
 }
