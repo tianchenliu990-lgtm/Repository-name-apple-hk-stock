@@ -1,3 +1,4 @@
+
 name: Apple HK Stock Monitor
 
 on:
@@ -6,30 +7,38 @@ on:
 permissions:
   contents: write
 
+# 防止多个工作流同时提交库存状态
 concurrency:
   group: apple-hk-stock
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   check-stock:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
 
-      - name: Setup Python
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
       - name: Check Apple stock
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-        run: python check_stock.py
+        run: |
+          python check_stock.py
 
       - name: Save stock state
         run: |
@@ -44,4 +53,12 @@ jobs:
           fi
 
           git commit -m "Update stock state"
-          git push
+
+          # 获取远程最新提交
+          git fetch origin main
+
+          # 将本次提交整理到远程最新提交之后
+          git rebase origin/main
+
+          # 推送库存状态
+          git push origin HEAD:main
