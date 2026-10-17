@@ -5,7 +5,7 @@
     "R428": false,
     "R485": false,
     "R499": false,
-    "R610": false,
+    "R610": true,
     "R673": false
   },
   "checks": {
@@ -31,12 +31,12 @@
     "R428|MJXV4ZA/A": false,
     "R485|MJXV4ZA/A": false,
     "R499|MJXV4ZA/A": false,
-    "R610|MJXV4ZA/A": false,
+    "R610|MJXV4ZA/A": true,
     "R673|MJXV4ZA/A": false
   },
-  "last_checked_utc": "2026-10-17T07:28:16.095845+00:00",
+  "last_checked_utc": "2026-10-17T07:31:22.812230+00:00",
   "last_stock_notice_MJXW4ZA_A": 1792222095.825146,
   "last_stock_notice_MJXU4ZA_A": 1792222095.825146,
   "last_stock_notice_MJXT4ZA_A": 1792221552.05871,
-  "last_stock_notice_MJXV4ZA_A": 1792217713.430701
+  "last_stock_notice_MJXV4ZA_A": 1792222282.500097
 }
