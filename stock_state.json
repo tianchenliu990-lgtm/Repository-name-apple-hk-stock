@@ -3,7 +3,7 @@
   "stores": {
     "R409": true,
     "R428": false,
-    "R485": true,
+    "R485": false,
     "R499": false,
     "R610": false,
     "R673": true
@@ -23,7 +23,7 @@
     "R673|MJXT4ZA/A": true,
     "R409|MJXU4ZA/A": true,
     "R428|MJXU4ZA/A": false,
-    "R485|MJXU4ZA/A": true,
+    "R485|MJXU4ZA/A": false,
     "R499|MJXU4ZA/A": false,
     "R610|MJXU4ZA/A": false,
     "R673|MJXU4ZA/A": true,
@@ -34,7 +34,7 @@
     "R610|MJXV4ZA/A": true,
     "R673|MJXV4ZA/A": true
   },
-  "last_checked_utc": "2026-10-22T05:43:55.184678+00:00",
+  "last_checked_utc": "2026-10-22T05:45:56.786766+00:00",
   "last_stock_notice_MJXW4ZA_A": 1792647363.20916,
   "last_stock_notice_MJXU4ZA_A": 1792647363.20916,
   "last_stock_notice_MJXT4ZA_A": 1792647834.865427,
